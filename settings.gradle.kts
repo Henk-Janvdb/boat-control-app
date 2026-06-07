@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "BoatControlApp"
+rootProject.name = "BoatControl"
 include(":app")
