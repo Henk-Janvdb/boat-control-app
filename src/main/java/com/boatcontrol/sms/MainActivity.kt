@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.telephony.SmsManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -29,12 +30,30 @@ import androidx.core.content.ContextCompat
 import android.os.Bundle
 import android.content.Intent
 import android.net.Uri
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 data class Boat(
     val id: Long = System.currentTimeMillis(),
     val name: String,
     val phoneNumber: String
 )
+
+class BoatStorage(context: Context) {
+    private val sharedPreferences = context.getSharedPreferences("boat_prefs", Context.MODE_PRIVATE)
+    private val gson = Gson()
+
+    fun saveBoats(boats: List<Boat>) {
+        val json = gson.toJson(boats)
+        sharedPreferences.edit().putString("boats", json).apply()
+    }
+
+    fun loadBoats(): List<Boat> {
+        val json = sharedPreferences.getString("boats", null) ?: return emptyList()
+        val type = object : TypeToken<List<Boat>>() {}.type
+        return gson.fromJson(json, type)
+    }
+}
 
 class MainActivity : ComponentActivity() {
     private val requestSmsPermission = registerForActivityResult(
@@ -60,7 +79,18 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun BoatControlApp(context: Context, requestPermission: (String) -> Unit) {
     var currentScreen by remember { mutableStateOf("main") }
-    val boats = remember { mutableStateListOf<Boat>() }
+    val boatStorage = remember { BoatStorage(context) }
+    val boats = remember { mutableStateListOf<Boat>().apply { addAll(boatStorage.loadBoats()) } }
+
+    // Handle system back button
+    BackHandler(enabled = currentScreen != "main") {
+        currentScreen = "main"
+    }
+
+    // Save boats whenever the list changes
+    LaunchedEffect(boats.size) {
+        boatStorage.saveBoats(boats.toList())
+    }
 
     MaterialTheme(
         colorScheme = lightColorScheme(
