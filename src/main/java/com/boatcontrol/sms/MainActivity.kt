@@ -307,22 +307,39 @@ fun openOnTrack(context: Context) {
     val packageName = "com.onntrackpro.gps"
     val webUrl = "https://www.onntrack.nl"
     
-    try {
-        val intent = context.packageManager.getLaunchIntentForPackage(packageName)
-        if (intent != null) {
+    val packageManager = context.packageManager
+    
+    // Probeer eerst de officiële Onntrack Pro app te vinden
+    val intent = packageManager.getLaunchIntentForPackage(packageName)
+    
+    if (intent != null) {
+        try {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
-        } else {
-            // Fallback naar de website als de app niet is geïnstalleerd
-            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(webUrl))
-            browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(browserIntent)
-            Toast.makeText(context, "Onntrack app niet gevonden, website geopend", Toast.LENGTH_SHORT).show()
+            return // Succesvol geopend
+        } catch (e: Exception) {
+            // Als het starten mislukt, gaan we door naar de Play Store/Web
         }
+    }
+
+    // Als de app niet direct gevonden wordt, probeer via Play Store
+    try {
+        val playStoreIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$packageName"))
+        playStoreIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(playStoreIntent)
+        Toast.makeText(context, "Onntrack Pro app niet direct gestart, Play Store geopend", Toast.LENGTH_SHORT).show()
     } catch (e: Exception) {
-        // Ultieme fallback
-        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(webUrl))
+        openWebFallback(context, webUrl)
+    }
+}
+
+private fun openWebFallback(context: Context, url: String) {
+    try {
+        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
         browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(browserIntent)
+        Toast.makeText(context, "Onntrack app niet gevonden, website geopend", Toast.LENGTH_SHORT).show()
+    } catch (e: Exception) {
+        Toast.makeText(context, "Kan Onntrack niet openen", Toast.LENGTH_SHORT).show()
     }
 }

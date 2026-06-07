@@ -1,48 +1,32 @@
-# Boat Control SMS App
+# Rent a Boat Flevoland - Bootbeheer App
 
-An Android APK application that allows you to control your boat via SMS commands.
+Een moderne Android-applicatie voor het op afstand bedienen van boten via SMS-commando's, specifiek ontworpen voor **Rent a Boat Flevoland**.
 
-## Features
+## Functies
 
-- ✅ Add multiple SMS relay phone numbers
-- ✅ Send ON command: `0000#ON#`
-- ✅ Send OFF command: `0000#OFF#`
-- ✅ Send custom SMS messages
-- ✅ Simple and intuitive UI
-- ✅ Manage phone numbers (add/remove)
+- **Vlootbeheer**: Voeg eenvoudig meerdere boten toe met hun eigen naam en telefoonnummer.
+- **SMS-bediening**: Schakel boten op afstand 'AAN' of 'UIT' met één druk op de knop.
+- **Onntrack Pro Integratie**: Directe toegang tot de Onntrack Pro GPS-tracking app of website.
+- **Modern Design**: Volledig in de oranje en nautisch blauwe huisstijl van Rent a Boat Flevoland.
+- **Privacy**: Werkt rechtstreeks via SMS, geen externe accounts of cloud-opslag vereist voor basisbediening.
 
-## Requirements
+## Gebruiksaanwijzing
 
-- Android 5.0 (API 24) or higher
-- SMS permissions enabled
-- Active phone line for sending SMS
+1. **Boten Toevoegen**: Open de app en ga naar 'Instellingen' (het tandwiel-icoontje). Voeg hier de naam en het telefoonnummer van je boot toe.
+2. **Bediening**: Op het hoofdscherm zie je nu een kaart voor elke boot. Gebruik de groene 'AAN' knop of de rode 'UIT' knop om commando's te versturen.
+3. **Tracking**: Klik op de bruine 'OnTrack Integratie' knop onderaan om de GPS-locaties te bekijken.
 
-## Installation
+## Technische Details
 
-1. Clone this repository
-2. Open in Android Studio
-3. Build and run on your device or emulator
+- **Taal**: Kotlin
+- **UI Framework**: Jetpack Compose
+- **Thema**: Material 3 (Oranje #FF6600 & Nautisch Blauw #1A3A52)
+- **Minimale Android Versie**: API 24 (Android 7.0)
+- **Machtigingen**: De app heeft toestemming nodig om SMS-berichten te verzenden (`SEND_SMS`).
 
-## Usage
+## Ontwikkeling
 
-1. **Add SMS Relay Numbers**: Enter phone numbers where SMS commands will be relayed
-2. **Send ON Command**: Click "ON" button to send `0000#ON#` to all added numbers
-3. **Send OFF Command**: Click "OFF" button to send `0000#OFF#` to all added numbers
-4. **Custom Messages**: Use custom SMS option for other commands
+Deze app is ontwikkeld als een test-implementatie voor vlootbeheer en SMS-relay bediening.
 
-## Permissions
-
-This app requires:
-- `SEND_SMS` - To send SMS messages
-- `READ_CONTACTS` - Optional, to select contacts
-
-## Technical Details
-
-- Built with Jetpack Compose
-- Uses Android's SmsManager API
-- Kotlin 1.9+
-- Material Design 3
-
-## License
-
-MIT License - Feel free to use and modify
+---
+© 2024 Rent a Boat Flevoland
