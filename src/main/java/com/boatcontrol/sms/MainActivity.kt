@@ -12,6 +12,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,6 +29,12 @@ import androidx.core.content.ContextCompat
 import android.os.Bundle
 import android.content.Intent
 import android.net.Uri
+
+data class Boat(
+    val id: Long = System.currentTimeMillis(),
+    val name: String,
+    val phoneNumber: String
+)
 
 class MainActivity : ComponentActivity() {
     private val requestSmsPermission = registerForActivityResult(
@@ -39,229 +50,279 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            BoatControlApp(this, requestSmsPermission)
-        }
-    }
-}
-
-@Composable
-fun BoatControlApp(context: Context, requestPermission: (String) -> Unit) {
-    val phoneNumbers = remember { mutableStateListOf<String>() }
-    val newPhoneNumber = remember { mutableStateOf("") }
-    val boatName = remember { mutableStateOf("My Boat") }
-
-    MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFFF5F5DC)) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                // Header
-                Text(
-                    "Boat Control SMS",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1A3A52),
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                Text(
-                    "Fleet Control",
-                    fontSize = 18.sp,
-                    color = Color(0xFF4A90E2),
-                    modifier = Modifier.padding(bottom = 24.dp)
-                )
-
-                // Boat Name Input
-                OutlinedTextField(
-                    value = boatName.value,
-                    onValueChange = { boatName.value = it },
-                    label = { Text("Boat Name") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp)
-                )
-
-                // Phone Number Input
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = newPhoneNumber.value,
-                        onValueChange = { newPhoneNumber.value = it },
-                        label = { Text("Phone Number") },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("+1234567890") }
-                    )
-                    Button(
-                        onClick = {
-                            if (newPhoneNumber.value.isNotEmpty()) {
-                                phoneNumbers.add(newPhoneNumber.value)
-                                newPhoneNumber.value = ""
-                            }
-                        },
-                        modifier = Modifier
-                            .align(Alignment.CenterVertically)
-                            .height(56.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
-                    ) {
-                        Text("Add")
-                    }
-                }
-
-                // Phone Numbers List
-                Text(
-                    "SMS Relay Destinations (${phoneNumbers.size})",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF1A3A52),
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .background(Color.White)
-                        .padding(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(phoneNumbers) { phone ->
-                        PhoneNumberItem(phone) {
-                            phoneNumbers.remove(phone)
-                        }
-                    }
-                }
-
-                // First Row: Control Buttons (ON, OFF, CUSTOM)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            if (phoneNumbers.isEmpty()) {
-                                Toast.makeText(context, "Add phone numbers first", Toast.LENGTH_SHORT).show()
-                            } else {
-                                requestSmsPermission(Manifest.permission.SEND_SMS)
-                                sendSmsToAll(context, phoneNumbers, "0000#ON#")
-                            }
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
-                    ) {
-                        Text("ON", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    }
-                    Button(
-                        onClick = {
-                            if (phoneNumbers.isEmpty()) {
-                                Toast.makeText(context, "Add phone numbers first", Toast.LENGTH_SHORT).show()
-                            } else {
-                                requestSmsPermission(Manifest.permission.SEND_SMS)
-                                sendSmsToAll(context, phoneNumbers, "0000#OFF#")
-                            }
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
-                    ) {
-                        Text("OFF", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    }
-                    Button(
-                        onClick = {
-                            // Custom SMS option
-                            Toast.makeText(context, "Custom SMS feature coming soon", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0))
-                    ) {
-                        Text("CUSTOM", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                // Second Row: OnTrack Button
-                Button(
-                    onClick = {
-                        openOnTrack(context)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .padding(top = 12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6F4E37))
-                ) {
-                    Text("OnTrack Integration", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
+            BoatControlApp(this) { permission ->
+                requestSmsPermission.launch(permission)
             }
         }
     }
 }
 
 @Composable
-fun PhoneNumberItem(phoneNumber: String, onRemove: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(0xFFF0F0F0))
-            .padding(12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            phoneNumber,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color(0xFF1A3A52)
+fun BoatControlApp(context: Context, requestPermission: (String) -> Unit) {
+    var currentScreen by remember { mutableStateOf("main") }
+    val boats = remember { mutableStateListOf<Boat>() }
+
+    MaterialTheme(
+        colorScheme = lightColorScheme(
+            primary = Color(0xFFFF6600), // Rent a Boat Orange
+            onPrimary = Color.White,
+            secondary = Color(0xFF1A3A52), // Nautical Blue
+            onSecondary = Color.White,
+            surface = Color(0xFFFFF7F2), // Very light orange tint
+            background = Color(0xFFFFF7F2)
         )
-        Button(
-            onClick = onRemove,
-            modifier = Modifier.height(32.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
-        ) {
-            Text("Remove", fontSize = 12.sp)
+    ) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            if (currentScreen == "main") {
+                MainScreen(
+                    context = context,
+                    boats = boats,
+                    onOpenSettings = { currentScreen = "settings" },
+                    requestPermission = requestPermission
+                )
+            } else {
+                SettingsScreen(
+                    boats = boats,
+                    onBack = { currentScreen = "main" }
+                )
+            }
         }
     }
 }
 
-fun sendSmsToAll(context: Context, phoneNumbers: List<String>, message: String) {
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainScreen(
+    context: Context,
+    boats: List<Boat>,
+    onOpenSettings: () -> Unit,
+    requestPermission: (String) -> Unit
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Rent a Boat Flevoland") },
+                actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+        ) {
+            if (boats.isEmpty()) {
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    Text("Geen boten toegevoegd. Ga naar instellingen.", color = Color.Gray)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(boats) { boat ->
+                        BoatControlCard(context, boat, requestPermission)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = { openOnTrack(context) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+            ) {
+                Text("OnTrack Integratie", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+fun BoatControlCard(context: Context, boat: Boat, requestPermission: (String) -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(boat.name, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+            Text(boat.phoneNumber, fontSize = 14.sp, color = Color.Gray)
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Button(
+                    onClick = {
+                        requestPermission(Manifest.permission.SEND_SMS)
+                        sendSms(context, boat.phoneNumber, "0000#ON#")
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)) // Keeping Green for 'AAN'
+                ) {
+                    Text("AAN")
+                }
+                Button(
+                    onClick = {
+                        requestPermission(Manifest.permission.SEND_SMS)
+                        sendSms(context, boat.phoneNumber, "0000#OFF#")
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)) // Keeping Red for 'UIT'
+                ) {
+                    Text("UIT")
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(
+    boats: MutableList<Boat>,
+    onBack: () -> Unit
+) {
+    var newBoatName by remember { mutableStateOf("") }
+    var newBoatNumber by remember { mutableStateOf("") }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Instellingen - Boten beheren") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+        ) {
+            Text("Nieuwe boot toevoegen", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
+            
+            OutlinedTextField(
+                value = newBoatName,
+                onValueChange = { newBoatName = it },
+                label = { Text("Naam boot") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            OutlinedTextField(
+                value = newBoatNumber,
+                onValueChange = { newBoatNumber = it },
+                label = { Text("Telefoonnummer") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Button(
+                onClick = {
+                    if (newBoatName.isNotBlank() && newBoatNumber.isNotBlank()) {
+                        boats.add(Boat(name = newBoatName, phoneNumber = newBoatNumber))
+                        newBoatName = ""
+                        newBoatNumber = ""
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Boot toevoegen")
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Text("Uw boten", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
+            
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(boats) { boat ->
+                    ListItem(
+                        headlineContent = { Text(boat.name) },
+                        supportingContent = { Text(boat.phoneNumber) },
+                        trailingContent = {
+                            IconButton(onClick = { boats.remove(boat) }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFC62828))
+                            }
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.White)
+                    )
+                }
+            }
+        }
+    }
+}
+
+fun sendSms(context: Context, phoneNumber: String, message: String) {
     if (ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.SEND_SMS
         ) == PackageManager.PERMISSION_GRANTED
     ) {
-        val smsManager: SmsManager = context.getSystemService(SmsManager::class.java)
-        phoneNumbers.forEach { phone ->
-            smsManager.sendTextMessage(phone, null, message, null, null)
+        try {
+            val smsManager: SmsManager = context.getSystemService(SmsManager::class.java)
+            smsManager.sendTextMessage(phoneNumber, null, message, null, null)
+            Toast.makeText(context, "SMS sent to $phoneNumber", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "Error sending SMS: ${e.message}", Toast.LENGTH_SHORT).show()
         }
-        Toast.makeText(context, "SMS sent to ${phoneNumbers.size} number(s)", Toast.LENGTH_SHORT).show()
     } else {
         Toast.makeText(context, "SMS permission required", Toast.LENGTH_SHORT).show()
     }
 }
 
 fun openOnTrack(context: Context) {
+    val packageName = "com.onntrackpro.gps"
+    val webUrl = "https://www.onntrack.nl"
+    
     try {
-        // Try to open OnTrack app if installed
-        val intent = context.packageManager.getLaunchIntentForPackage("com.ontrack.app")
+        val intent = context.packageManager.getLaunchIntentForPackage(packageName)
         if (intent != null) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
         } else {
-            // If OnTrack app is not installed, open the browser to OnTrack website
-            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.ontrackapp.com"))
-            context.startActivity(webIntent)
-            Toast.makeText(context, "Opening OnTrack", Toast.LENGTH_SHORT).show()
+            // Fallback naar de website als de app niet is geïnstalleerd
+            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(webUrl))
+            browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(browserIntent)
+            Toast.makeText(context, "Onntrack app niet gevonden, website geopend", Toast.LENGTH_SHORT).show()
         }
     } catch (e: Exception) {
-        Toast.makeText(context, "Error opening OnTrack: ${e.message}", Toast.LENGTH_SHORT).show()
+        // Ultieme fallback
+        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(webUrl))
+        browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(browserIntent)
     }
 }
