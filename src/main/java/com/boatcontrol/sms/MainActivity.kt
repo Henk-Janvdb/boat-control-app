@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import android.os.Bundle
+import android.content.Intent
+import android.net.Uri
 
 class MainActivity : ComponentActivity() {
     private val requestSmsPermission = registerForActivityResult(
@@ -134,7 +136,7 @@ fun BoatControlApp(context: Context, requestPermission: (String) -> Unit) {
                     }
                 }
 
-                // Control Buttons
+                // First Row: Control Buttons (ON, OFF, CUSTOM)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -176,6 +178,7 @@ fun BoatControlApp(context: Context, requestPermission: (String) -> Unit) {
                     Button(
                         onClick = {
                             // Custom SMS option
+                            Toast.makeText(context, "Custom SMS feature coming soon", Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier
                             .weight(1f)
@@ -184,6 +187,20 @@ fun BoatControlApp(context: Context, requestPermission: (String) -> Unit) {
                     ) {
                         Text("CUSTOM", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
+                }
+
+                // Second Row: OnTrack Button
+                Button(
+                    onClick = {
+                        openOnTrack(context)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(top = 12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6F4E37))
+                ) {
+                    Text("OnTrack Integration", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -229,5 +246,22 @@ fun sendSmsToAll(context: Context, phoneNumbers: List<String>, message: String) 
         Toast.makeText(context, "SMS sent to ${phoneNumbers.size} number(s)", Toast.LENGTH_SHORT).show()
     } else {
         Toast.makeText(context, "SMS permission required", Toast.LENGTH_SHORT).show()
+    }
+}
+
+fun openOnTrack(context: Context) {
+    try {
+        // Try to open OnTrack app if installed
+        val intent = context.packageManager.getLaunchIntentForPackage("com.ontrack.app")
+        if (intent != null) {
+            context.startActivity(intent)
+        } else {
+            // If OnTrack app is not installed, open the browser to OnTrack website
+            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.ontrackapp.com"))
+            context.startActivity(webIntent)
+            Toast.makeText(context, "Opening OnTrack", Toast.LENGTH_SHORT).show()
+        }
+    } catch (e: Exception) {
+        Toast.makeText(context, "Error opening OnTrack: ${e.message}", Toast.LENGTH_SHORT).show()
     }
 }
