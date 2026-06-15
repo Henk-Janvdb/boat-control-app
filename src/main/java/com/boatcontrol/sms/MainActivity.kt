@@ -16,7 +16,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -88,7 +90,7 @@ fun BoatControlApp(context: Context, requestPermission: (String) -> Unit) {
     }
 
     // Save boats whenever the list changes
-    LaunchedEffect(boats.size) {
+    LaunchedEffect(boats.toList()) {
         boatStorage.saveBoats(boats.toList())
     }
 
@@ -230,8 +232,9 @@ fun SettingsScreen(
     boats: MutableList<Boat>,
     onBack: () -> Unit
 ) {
-    var newBoatName by remember { mutableStateOf("") }
-    var newBoatNumber by remember { mutableStateOf("") }
+    var boatName by remember { mutableStateOf("") }
+    var boatNumber by remember { mutableStateOf("") }
+    var editingBoatId by remember { mutableStateOf<Long?>(null) }
 
     Scaffold(
         topBar = {
@@ -257,11 +260,16 @@ fun SettingsScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            Text("Nieuwe boot toevoegen", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
+            Text(
+                if (editingBoatId == null) "Nieuwe boot toevoegen" else "Boot bewerken",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
             
             OutlinedTextField(
-                value = newBoatName,
-                onValueChange = { newBoatName = it },
+                value = boatName,
+                onValueChange = { boatName = it },
                 label = { Text("Naam boot") },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -269,28 +277,51 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(8.dp))
             
             OutlinedTextField(
-                value = newBoatNumber,
-                onValueChange = { newBoatNumber = it },
+                value = boatNumber,
+                onValueChange = { boatNumber = it },
                 label = { Text("Telefoonnummer") },
                 modifier = Modifier.fillMaxWidth()
             )
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            Button(
-                onClick = {
-                    if (newBoatName.isNotBlank() && newBoatNumber.isNotBlank()) {
-                        boats.add(Boat(name = newBoatName, phoneNumber = newBoatNumber))
-                        newBoatName = ""
-                        newBoatNumber = ""
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        if (boatName.isNotBlank() && boatNumber.isNotBlank()) {
+                            if (editingBoatId == null) {
+                                boats.add(Boat(name = boatName, phoneNumber = boatNumber))
+                            } else {
+                                val index = boats.indexOfFirst { it.id == editingBoatId }
+                                if (index != -1) {
+                                    boats[index] = boats[index].copy(name = boatName, phoneNumber = boatNumber)
+                                }
+                                editingBoatId = null
+                            }
+                            boatName = ""
+                            boatNumber = ""
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(if (editingBoatId == null) Icons.Default.Add else Icons.Default.Check, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (editingBoatId == null) "Boot toevoegen" else "Opslaan")
+                }
+
+                if (editingBoatId != null) {
+                    OutlinedButton(
+                        onClick = {
+                            editingBoatId = null
+                            boatName = ""
+                            boatNumber = ""
+                        },
+                        modifier = Modifier.weight(0.5f)
+                    ) {
+                        Text("Annuleren")
                     }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Boot toevoegen")
+                }
             }
             
             Spacer(modifier = Modifier.height(24.dp))
@@ -303,8 +334,17 @@ fun SettingsScreen(
                         headlineContent = { Text(boat.name) },
                         supportingContent = { Text(boat.phoneNumber) },
                         trailingContent = {
-                            IconButton(onClick = { boats.remove(boat) }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFC62828))
+                            Row {
+                                IconButton(onClick = {
+                                    boatName = boat.name
+                                    boatNumber = boat.phoneNumber
+                                    editingBoatId = boat.id
+                                }) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.secondary)
+                                }
+                                IconButton(onClick = { boats.remove(boat) }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFC62828))
+                                }
                             }
                         },
                         colors = ListItemDefaults.colors(containerColor = Color.White)
