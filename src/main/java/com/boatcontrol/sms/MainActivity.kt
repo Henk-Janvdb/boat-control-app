@@ -10,6 +10,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,33 +30,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.glance.appwidget.updateAll
 import android.os.Bundle
 import android.content.Intent
 import android.net.Uri
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-
-data class Boat(
-    val id: Long = System.currentTimeMillis(),
-    val name: String,
-    val phoneNumber: String
-)
-
-class BoatStorage(context: Context) {
-    private val sharedPreferences = context.getSharedPreferences("boat_prefs", Context.MODE_PRIVATE)
-    private val gson = Gson()
-
-    fun saveBoats(boats: List<Boat>) {
-        val json = gson.toJson(boats)
-        sharedPreferences.edit().putString("boats", json).apply()
-    }
-
-    fun loadBoats(): List<Boat> {
-        val json = sharedPreferences.getString("boats", null) ?: return emptyList()
-        val type = object : TypeToken<List<Boat>>() {}.type
-        return gson.fromJson(json, type)
-    }
-}
 
 class MainActivity : ComponentActivity() {
     private val requestSmsPermission = registerForActivityResult(
@@ -78,10 +58,40 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private val LightColorScheme = lightColorScheme(
+    primary = Color(0xFFFF6600), // Rent a Boat Orange
+    onPrimary = Color.White,
+    secondary = Color(0xFF1A3A52), // Nautical Blue
+    onSecondary = Color.White,
+    surface = Color(0xFFFFF7F2), // Very light orange tint
+    background = Color(0xFFFFF7F2),
+    surfaceVariant = Color.White
+)
+
+private val DarkColorScheme = darkColorScheme(
+    primary = Color(0xFFFF6600),
+    onPrimary = Color.Black,
+    secondary = Color(0xFF4A90E2), // Lighter Blue for dark mode
+    onSecondary = Color.White,
+    surface = Color(0xFF121212),
+    background = Color(0xFF121212),
+    onSurface = Color.White,
+    onBackground = Color.White,
+    surfaceVariant = Color(0xFF1E1E1E)
+)
+
 @Composable
 fun BoatControlApp(context: Context, requestPermission: (String) -> Unit) {
-    var currentScreen by remember { mutableStateOf("main") }
     val boatStorage = remember { BoatStorage(context) }
+    var themeMode by remember { mutableStateOf(boatStorage.loadThemeMode()) }
+    
+    val darkTheme = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+    
+    var currentScreen by remember { mutableStateOf("main") }
     val boats = remember { mutableStateListOf<Boat>().apply { addAll(boatStorage.loadBoats()) } }
 
     // Handle system back button
@@ -92,17 +102,18 @@ fun BoatControlApp(context: Context, requestPermission: (String) -> Unit) {
     // Save boats whenever the list changes
     LaunchedEffect(boats.toList()) {
         boatStorage.saveBoats(boats.toList())
+        BoatWidget().updateAll(context)
+    }
+    
+    // Save theme whenever it changes
+    LaunchedEffect(themeMode) {
+        boatStorage.saveThemeMode(themeMode)
     }
 
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+
     MaterialTheme(
-        colorScheme = lightColorScheme(
-            primary = Color(0xFFFF6600), // Rent a Boat Orange
-            onPrimary = Color.White,
-            secondary = Color(0xFF1A3A52), // Nautical Blue
-            onSecondary = Color.White,
-            surface = Color(0xFFFFF7F2), // Very light orange tint
-            background = Color(0xFFFFF7F2)
-        )
+        colorScheme = colorScheme
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             if (currentScreen == "main") {
@@ -115,6 +126,8 @@ fun BoatControlApp(context: Context, requestPermission: (String) -> Unit) {
             } else {
                 SettingsScreen(
                     boats = boats,
+                    themeMode = themeMode,
+                    onThemeChange = { themeMode = it },
                     onBack = { currentScreen = "main" }
                 )
             }
@@ -156,7 +169,7 @@ fun MainScreen(
         ) {
             if (boats.isEmpty()) {
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    Text("Geen boten toegevoegd. Ga naar instellingen.", color = Color.Gray)
+                    Text("Geen boten toegevoegd. Ga naar instellingen.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 LazyColumn(
@@ -188,12 +201,12 @@ fun MainScreen(
 fun BoatControlCard(context: Context, boat: Boat, requestPermission: (String) -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(boat.name, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
-            Text(boat.phoneNumber, fontSize = 14.sp, color = Color.Gray)
+            Text(boat.name, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Text(boat.phoneNumber, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             
             Row(
                 modifier = Modifier
@@ -230,6 +243,8 @@ fun BoatControlCard(context: Context, boat: Boat, requestPermission: (String) ->
 @Composable
 fun SettingsScreen(
     boats: MutableList<Boat>,
+    themeMode: ThemeMode,
+    onThemeChange: (ThemeMode) -> Unit,
     onBack: () -> Unit
 ) {
     var boatName by remember { mutableStateOf("") }
@@ -239,7 +254,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Instellingen - Boten beheren") },
+                title = { Text("Instellingen") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -254,122 +269,166 @@ fun SettingsScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                if (editingBoatId == null) "Nieuwe boot toevoegen" else "Boot bewerken",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            
-            OutlinedTextField(
-                value = boatName,
-                onValueChange = { boatName = it },
-                label = { Text("Naam boot") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            OutlinedTextField(
-                value = boatNumber,
-                onValueChange = { boatNumber = it },
-                label = { Text("Telefoonnummer") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = {
-                        if (boatName.isNotBlank() && boatNumber.isNotBlank()) {
-                            if (editingBoatId == null) {
-                                boats.add(Boat(name = boatName, phoneNumber = boatNumber))
-                            } else {
-                                val index = boats.indexOfFirst { it.id == editingBoatId }
-                                if (index != -1) {
-                                    boats[index] = boats[index].copy(name = boatName, phoneNumber = boatNumber)
-                                }
-                                editingBoatId = null
-                            }
-                            boatName = ""
-                            boatNumber = ""
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            item {
+                Text(
+                    "Thema instellingen",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(if (editingBoatId == null) Icons.Default.Add else Icons.Default.Check, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (editingBoatId == null) "Boot toevoegen" else "Opslaan")
+                    ThemeOptionButton(
+                        text = "Systeem",
+                        isSelected = themeMode == ThemeMode.SYSTEM,
+                        onClick = { onThemeChange(ThemeMode.SYSTEM) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    ThemeOptionButton(
+                        text = "Licht",
+                        isSelected = themeMode == ThemeMode.LIGHT,
+                        onClick = { onThemeChange(ThemeMode.LIGHT) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    ThemeOptionButton(
+                        text = "Donker",
+                        isSelected = themeMode == ThemeMode.DARK,
+                        onClick = { onThemeChange(ThemeMode.DARK) },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
+                
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+            }
 
-                if (editingBoatId != null) {
-                    OutlinedButton(
+            item {
+                Text(
+                    if (editingBoatId == null) "Nieuwe boot toevoegen" else "Boot bewerken",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                
+                OutlinedTextField(
+                    value = boatName,
+                    onValueChange = { boatName = it },
+                    label = { Text("Naam boot") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            
+            item {
+                OutlinedTextField(
+                    value = boatNumber,
+                    onValueChange = { boatNumber = it },
+                    label = { Text("Telefoonnummer") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            
+            item {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
                         onClick = {
-                            editingBoatId = null
-                            boatName = ""
-                            boatNumber = ""
+                            if (boatName.isNotBlank() && boatNumber.isNotBlank()) {
+                                if (editingBoatId == null) {
+                                    boats.add(Boat(name = boatName, phoneNumber = boatNumber))
+                                } else {
+                                    val index = boats.indexOfFirst { it.id == editingBoatId }
+                                    if (index != -1) {
+                                        boats[index] = boats[index].copy(name = boatName, phoneNumber = boatNumber)
+                                    }
+                                    editingBoatId = null
+                                }
+                                boatName = ""
+                                boatNumber = ""
+                            }
                         },
-                        modifier = Modifier.weight(0.5f)
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
-                        Text("Annuleren")
+                        Icon(if (editingBoatId == null) Icons.Default.Add else Icons.Default.Check, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (editingBoatId == null) "Boot toevoegen" else "Opslaan")
+                    }
+
+                    if (editingBoatId != null) {
+                        OutlinedButton(
+                            onClick = {
+                                editingBoatId = null
+                                boatName = ""
+                                boatNumber = ""
+                            },
+                            modifier = Modifier.weight(0.5f)
+                        ) {
+                            Text("Annuleren")
+                        }
                     }
                 }
             }
             
-            Spacer(modifier = Modifier.height(24.dp))
+            item {
+                Text("Uw boten", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+            }
             
-            Text("Uw boten", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
-            
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(boats) { boat ->
-                    ListItem(
-                        headlineContent = { Text(boat.name) },
-                        supportingContent = { Text(boat.phoneNumber) },
-                        trailingContent = {
-                            Row {
-                                IconButton(onClick = {
-                                    boatName = boat.name
-                                    boatNumber = boat.phoneNumber
-                                    editingBoatId = boat.id
-                                }) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.secondary)
-                                }
-                                IconButton(onClick = { boats.remove(boat) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFC62828))
-                                }
+            items(boats) { boat ->
+                ListItem(
+                    headlineContent = { Text(boat.name) },
+                    supportingContent = { Text(boat.phoneNumber) },
+                    trailingContent = {
+                        Row {
+                            IconButton(onClick = {
+                                boatName = boat.name
+                                boatNumber = boat.phoneNumber
+                                editingBoatId = boat.id
+                            }) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.secondary)
                             }
-                        },
-                        colors = ListItemDefaults.colors(containerColor = Color.White)
-                    )
-                }
+                            IconButton(onClick = { boats.remove(boat) }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFC62828))
+                            }
+                        }
+                    },
+                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                )
             }
         }
     }
 }
 
-fun sendSms(context: Context, phoneNumber: String, message: String) {
-    if (ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.SEND_SMS
-        ) == PackageManager.PERMISSION_GRANTED
-    ) {
-        try {
-            val smsManager: SmsManager = context.getSystemService(SmsManager::class.java)
-            smsManager.sendTextMessage(phoneNumber, null, message, null, null)
-            Toast.makeText(context, "SMS sent to $phoneNumber", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            Toast.makeText(context, "Error sending SMS: ${e.message}", Toast.LENGTH_SHORT).show()
+@Composable
+fun ThemeOptionButton(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (isSelected) {
+        Button(
+            onClick = onClick,
+            modifier = modifier,
+            contentPadding = PaddingValues(horizontal = 8.dp)
+        ) {
+            Text(text, fontSize = 12.sp)
         }
     } else {
-        Toast.makeText(context, "SMS permission required", Toast.LENGTH_SHORT).show()
+        OutlinedButton(
+            onClick = onClick,
+            modifier = modifier,
+            contentPadding = PaddingValues(horizontal = 8.dp)
+        ) {
+            Text(text, fontSize = 12.sp)
+        }
     }
 }
 

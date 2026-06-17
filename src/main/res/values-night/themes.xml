@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.BoatControl" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">#FF6600</item>
+        <item name="android:statusBarColor">#000000</item>
+    </style>
+</resources>
